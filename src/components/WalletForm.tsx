@@ -3,11 +3,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   AppDispatch,
   ChangeEvent,
+  Expense,
   FormExpense,
   GlobalState,
   SubmitEvent,
 } from '../types';
-import { addExpense, getCurrencies } from '../redux/actions';
+import { addExpense, getCurrencies, updateExpenses } from '../redux/actions';
 
 const tags = ['Alimentação', 'Lazer', 'Trabalho', 'Transporte', 'Saúde'];
 const methods = ['Dinheiro', 'Cartão de crédito', 'Cartão de débito'];
@@ -22,7 +23,11 @@ const initialStateForm: FormExpense = {
 
 function WalletForm() {
   const dispatch: AppDispatch = useDispatch();
-  const wallet = useSelector((state: GlobalState) => state.wallet);
+  const {
+    expenses,
+    currencies,
+    editor,
+    idToEdit } = useSelector((state: GlobalState) => state.wallet);
   const [form, setForm] = useState(initialStateForm);
 
   const isBtnEnabled = false;
@@ -34,13 +39,40 @@ function WalletForm() {
 
   const handleSubmit = (event: SubmitEvent) => {
     event.preventDefault();
-    dispatch(addExpense(form));
+    if (editor) {
+      const newExpenses = expenses.map((expense) => {
+        if (expense.id === idToEdit) {
+          return {
+            ...expense,
+            ...form,
+          };
+        }
+        return expense;
+      });
+      dispatch(updateExpenses(newExpenses));
+    } else {
+      dispatch(addExpense(form));
+    }
     setForm(initialStateForm);
   };
 
   useEffect(() => {
     dispatch(getCurrencies());
   }, []);
+
+  useEffect(() => {
+    if (editor) {
+      const { description, tag, value,
+        method, currency } = expenses.find(({ id }) => id === idToEdit) as Expense;
+      setForm({
+        description,
+        tag,
+        value,
+        method,
+        currency,
+      });
+    }
+  }, [editor]);
 
   return (
     <form onSubmit={ handleSubmit }>
@@ -104,7 +136,7 @@ function WalletForm() {
           data-testid="currency-input"
         >
           {
-            wallet.currencies
+            currencies
               .map((currency) => <option key={ currency }>{ currency }</option>)
           }
         </select>
@@ -113,7 +145,7 @@ function WalletForm() {
         type="submit"
         disabled={ isBtnEnabled }
       >
-        Adicionar despesa
+        { editor ? 'Editar despesa' : 'Adicionar despesa' }
       </button>
     </form>
   );
